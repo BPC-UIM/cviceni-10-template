@@ -16,7 +16,7 @@ _/|_
 
 Description:
     Vstupni bod cviceni 10 (uceni site gradientnim sestupem -- backpropagation).
-    Pipeline projde sest fazi:
+    Pipeline projde sedm fazi:
 
       1. data -- Breast Cancer Wisconsin, 30 priznaku, standardizace,
          rozdeleni na trenovaci a testovaci cast,
@@ -27,7 +27,10 @@ Description:
       4. jeden krok uceni -- forward, ztrata, backward a update na jedinem
          vzorku (na kopii site); vypise, jak se zmenila chyba,
       5. uceni -- Trainer.run (epochy, michani, davky, logovani do logs/),
-      6. vyhodnoceni -- matice zamen 2x2, metriky a krivka uceni do graphs/.
+      6. vyhodnoceni -- matice zamen 2x2, metriky a krivka uceni do graphs/,
+      7. ulozeni modelu -- Sequential.save ulozi celou naucenou sit do
+         jednoho souboru models/*.npz, Sequential.load ji nacte zpet
+         a overi se, ze predikuje totez.
 
     Cela pipeline je predvyplnena. Studentske ukoly jsou v src/ (derivace
     aktivaci, Linear.update, Sequential.forward/backward/update, ztraty,
@@ -44,6 +47,7 @@ Description:
 from __future__ import annotations
 
 import copy
+import os
 import sys
 import time
 
@@ -78,6 +82,7 @@ except ImportError as exc:  # pragma: no cover - jen ochranna hlaska
 
 GRAPHS_DIR = "graphs"          # vystupni grafy (.png)
 LOGS_DIR = "logs"              # soubor logu uceni (trainer.log)
+MODELS_DIR = "models"          # naucena sit (Sequential.save -> .npz)
 
 # Kontrola gradientu: relativni chyba pod touto mezi = backward je spravne.
 PRAH_KONTROLY_GRADIENTU = 1e-5
@@ -345,6 +350,41 @@ def faze_vyhodnoceni(cfg: ExperimentConfig, sit: Sequential, history: dict[str, 
     print(f"  grafy ulozeny: {GRAPHS_DIR}/matice_zamen.png, {GRAPHS_DIR}/krivka_uceni.png")
 
 
+def faze_ulozeni(cfg: ExperimentConfig, sit: Sequential, history: dict[str, list[float]] | None,
+                 x_test: np.ndarray) -> None:
+    """Faze 7 -- ulozeni naucene site do models/ a kontrolni nacteni.
+
+    ``Sequential.save`` ulozi celou sit do jedineho souboru
+    ``models/sit_<architektura>_<inicializator>_<ztrata>.npz``.
+    Jmeno souboru nese konfiguraci, takze behy s ruznym nastavenim
+    (napr. ``xavier`` vs. ``random_uniform``) se navzajem neprepisi.
+    """
+    _banner("Faze 7: Ulozeni modelu do models/")
+    if history is None:
+        print("  [PRESKOCENO] Sit nebyla naucena (faze 5 neprobehla).")
+        return
+
+    architektura = "-".join(str(k) for k in [x_test.shape[1], *cfg.network.hidden_units, 1])
+    cesta = f"{MODELS_DIR}/sit_{architektura}_{cfg.network.initializer}_{cfg.loss}.npz"
+    os.makedirs(MODELS_DIR, exist_ok=True)
+
+    try:
+        sit.save(cesta)
+        print(f"  sit ({len(sit.layers)} vrstvy) ulozena: {cesta}")
+
+        # Kontrola: nactena sit musi predikovat presne totez.
+        nactena = Sequential.load(cesta)
+        rozdil = np.abs(nactena.forward(x_test) - sit.forward(x_test)).max()
+        if rozdil < 1e-12:
+            print(f"  [OK] Nactena sit dava stejne vystupy (max. rozdil {rozdil:.1e}).")
+        else:
+            print(f"  [CHYBA] Nactena sit se lisi (max. rozdil {rozdil:.1e}).")
+    except NotImplementedError as exc:
+        _faze_neni_hotova(exc)
+    except (AssertionError, ValueError, KeyError) as exc:
+        _chyba_implementace(exc)
+
+
 def main() -> None:
     """Spusti celou pipeline cviceni 10 s ochrannymi bloky u kazde faze."""
     _banner("CVICENI 10 -- Uceni site gradientnim sestupem (backpropagation) -- start")
@@ -362,6 +402,7 @@ def main() -> None:
     faze_jeden_krok(cfg, sit, x_train, y_train)
     history = faze_uceni(cfg, sit, (x_train, y_train, x_test, y_test))
     faze_vyhodnoceni(cfg, sit, history, x_test, y_test)
+    faze_ulozeni(cfg, sit, history, x_test)
 
     _banner("CVICENI 10 -- konec")
 

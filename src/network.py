@@ -3,7 +3,8 @@
 BRANA+ (continuity gate s rozsirenim): Metodu `forward` znate z Cviceni 09;
 v Cviceni 10 ji **rozsirte** o ukladani predaktivacnich hodnot `z_`.
 Metody `backward` a `update` jsou novym ukolem - jadro celeho cviceni
-(zpetne sireni chyby, backpropagation).
+(zpetne sireni chyby, backpropagation). Metody `save` a `load` (ulozeni
+cele site do jednoho .npz souboru) jsou PREDVYPLNENE - nic v nich nedoplnujte.
 
 `Sequential` drzi seznam vrstev (kompozice, ne dedicnost). Vrstvou je
 `Neuron` (modul `src.neuron`) se slozkami `linear` (matice vah
@@ -28,9 +29,14 @@ vrstvy `l`. Gradienty jsou **skutecne gradienty** ztraty (smer rustu chyby);
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
+
+from src.activations import Sigmoid, make_activation
+from src.linear import Linear
+from src.neuron import Neuron
 
 
 class Sequential:
@@ -170,6 +176,73 @@ class Sequential:
             "Úkol: pro kazdou dvojici (layer, (dW, db)) ze zip(self.layers, gradients) "
             "zavolejte layer.linear.update(dW, db, learning_rate)."
         )
+
+    def save(self, path: str) -> None:
+        """Ulozi celou sit (vsechny vrstvy) do jednoho .npz archivu (PREDVYPLNENO).
+
+        Pro kazdou vrstvu `k = 1, ..., L` se ulozi stejne klice jako
+        v `Neuron.save`, jen s predponou `vrstva<k>_`:
+
+        - `vrstva<k>_weights`, `vrstva<k>_activation_name`,
+        - `vrstva<k>_bias` - jen pokud vrstva bias ma,
+        - `vrstva<k>_temperature` - jen pokud je aktivace `Sigmoid`.
+
+        Klic `pocet_vrstev` rika metode `load`, kolik vrstev ma sestavit.
+
+        Parametry
+        ---------
+        path : str
+            Cesta k vystupnimu .npz souboru.
+        """
+        assert len(self.layers) > 0, "Sequential musi obsahovat alespon jednu vrstvu"
+
+        archiv: dict[str, object] = {"pocet_vrstev": len(self.layers)}
+        for k, layer in enumerate(self.layers, start=1):
+            archiv[f"vrstva{k}_weights"] = layer.linear.weights
+            archiv[f"vrstva{k}_activation_name"] = type(layer.activation).__name__
+            if layer.linear.bias is not None:
+                archiv[f"vrstva{k}_bias"] = layer.linear.bias
+            if isinstance(layer.activation, Sigmoid):
+                archiv[f"vrstva{k}_temperature"] = layer.activation.temperature
+
+        np.savez(path, **archiv)
+
+    @classmethod
+    def load(cls, path: str) -> Sequential:
+        """Nacte sit ulozenou metodou `save` a vrati novou instanci `Sequential` (PREDVYPLNENO).
+
+        Presna inverze k `save`: pro kazdou vrstvu se z klicu s predponou
+        `vrstva<k>_` sestavi `Neuron(Linear(weights, bias), aktivace)`,
+        stejne jako v `Neuron.load`.
+
+        Parametry
+        ---------
+        path : str
+            Cesta k .npz souboru vytvorenemu metodou `save`.
+
+        Navratova hodnota
+        -----------------
+        Sequential
+            Nova sit se stejnymi vahami, biasy a aktivacemi jako pri ulozeni.
+        """
+        assert os.path.exists(path), f"Soubor s modelem neexistuje: {path}"
+
+        layers = []
+        with np.load(path) as archiv:
+            for k in range(1, int(archiv["pocet_vrstev"]) + 1):
+                weights = archiv[f"vrstva{k}_weights"]
+                # Chybejici klic znamena vrstvu bez biasu (stejne jako v Neuron.load).
+                bias = archiv[f"vrstva{k}_bias"] if f"vrstva{k}_bias" in archiv else None
+                temperature = (
+                    float(archiv[f"vrstva{k}_temperature"])
+                    if f"vrstva{k}_temperature" in archiv else 1.0
+                )
+                activation = make_activation(
+                    str(archiv[f"vrstva{k}_activation_name"]), temperature=temperature
+                )
+                layers.append(Neuron(Linear(weights, bias), activation))
+
+        return cls(layers)
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         """Zkratka pro `forward` - umoznuje volat instanci jako funkci.

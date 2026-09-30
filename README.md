@@ -73,7 +73,7 @@ cviceni-10-template/
 ├── .github/
 │   └── workflows/
 │       └── tests.yml          # CI: po každém push spustí pytest (PŘEDVYPLNĚNO)
-├── cviceni_10.py              # Pipeline, celá PŘEDVYPLNĚNA (šest fází)
+├── cviceni_10.py              # Pipeline, celá PŘEDVYPLNĚNA (sedm fází)
 ├── config.yaml                # Konfigurace (data, architektura, učení, ztráta)
 ├── priklady_10.md             # Papírové příklady, BEZ řešení
 ├── requirements.txt           # Python závislosti (zamčené verze)
@@ -87,7 +87,7 @@ cviceni-10-template/
 │   ├── activations.py         # BRÁNA+ z Cvičení 09; ÚKOL: derivative() u všech aktivací
 │   ├── linear.py              # BRÁNA+ z Cvičení 09; ÚKOL: update()
 │   ├── neuron.py              # BRÁNA z Cvičení 09 beze změny (včetně save/load)
-│   ├── network.py             # BRÁNA+ z Cvičení 09; ÚKOL: forward() se z_, backward(), update()
+│   ├── network.py             # BRÁNA+ z Cvičení 09; ÚKOL: forward() se z_, backward(), update(); save()/load() předvyplněny
 │   ├── losses.py              # ÚKOL: MSE a BCE (forward, gradient); Loss a make_loss předvyplněny
 │   ├── initializers.py        # ÚKOL: XavierInit, BONUS: HeInit; ostatní (vč. PyTorchDefaultInit) předvyplněno
 │   └── trainer.py             # Trainer s logováním (PŘEDVYPLNĚNO)
@@ -103,7 +103,7 @@ cviceni-10-template/
 │   └── .gitkeep
 ├── logs/                      # Log učení trainer.log (generuje se automaticky)
 │   └── .gitkeep
-├── models/                    # Cílová složka Neuron.save (.npz), návaznost na Cvičení 08
+├── models/                    # Naučená síť ze Sequential.save (.npz, generuje fáze 7)
 │   └── .gitkeep
 └── test_cviceni_10.py         # Automatické testy (pytest)
 ```
@@ -129,9 +129,12 @@ cviceni-10-template/
 > `NotImplementedError` v nich není. Logování v `Trainer` nepíšete, pouze
 > pozorujete jeho výstup v konzoli a v souboru `logs/trainer.log`.
 
-> **Perzistence (`Neuron.save`/`load`) není novým úkolem.** Zůstává v
-> `src/neuron.py` jako spojovací nit mezi cvičeními, proto repozitář obsahuje
-> složku `models/`. Pipeline Cvičení 10 ji nepoužívá.
+> **Perzistence není novým úkolem.** `Neuron.save`/`load` zůstává v
+> `src/neuron.py` jako spojovací nit mezi cvičeními a ukládá jednu vrstvu.
+> Celou síť ukládá do jednoho souboru předvyplněná metoda `Sequential.save`
+> (klíče `Neuron.save` s předponou `vrstva<k>_`), načítá ji
+> `Sequential.load`. Pipeline je používá ve fázi 7 a naučenou síť ukládá do
+> `models/sit_<architektura>_<inicializátor>_<ztráta>.npz`.
 
 ---
 
@@ -165,7 +168,7 @@ pip install -r requirements.txt
 python cviceni_10.py
 ```
 
-Pipeline má šest fází a **každá fáze má vlastní ošetření chyb**:
+Pipeline má sedm fází a **každá fáze má vlastní ošetření chyb**:
 
 | Fáze | Obsah | Co potřebuje hotové |
 |:---|:---|:---|
@@ -175,6 +178,7 @@ Pipeline má šest fází a **každá fáze má vlastní ošetření chyb**:
 | 4 | jeden krok učení na jednom vzorku | vše z fáze 2 + `Linear.update`, `Sequential.update` |
 | 5 | učení (`Trainer.run`), logování do `logs/` | totéž |
 | 6 | matice záměn, metriky, křivka učení do `graphs/` | úspěšná fáze 5 |
+| 7 | uložení naučené sítě do `models/` (`Sequential.save`) a kontrolní načtení | úspěšná fáze 5 (ukládání je předvyplněno) |
 
 Dokud nejsou úkoly hotové, fáze, která narazí na nedokončenou část, skončí
 hláškou `[NENI HOTOVO] Úkol: …` a pipeline **pokračuje další fází**. Selže-li
