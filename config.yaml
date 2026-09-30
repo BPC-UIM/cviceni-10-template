@@ -1,0 +1,18 @@
+data:
+  test_size: 0.2            # podil testovacich vzorku (stratifikovane rozdeleni)
+  random_state: 42          # seed rozdeleni dat, inicializace vah i michani vzorku
+
+network:
+  hidden_units: [9, 4]      # skryte vrstvy; vstup (30 priznaku) a vystup (1 jednotka) se dopocitaji
+  initializer: xavier       # random_uniform | xavier | he | pytorch_default
+  sigmoid_temperature: 0.5  # teplota sigmoidy ve vsech vrstvach
+
+training:
+  learning_rate: 0.01       # pocatecni krok gradientniho sestupu
+  epochs: 300               # maximalni pocet pruchodu trenovacimi daty
+  batch_size: 1             # 1 = stochasticky gradientni sestup (aktualizace po kazdem vzorku)
+  max_loss: 0.01            # uceni skonci, klesne-li trenovaci ztrata pod tuto mez
+  lr_decay: 0.85            # nasobitel kroku uceni ...
+  lr_decay_every: 50        # ... kazdych tolik epoch
+
+loss: bce                   # mse | bce
